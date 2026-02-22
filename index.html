@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Countdown Garden</title>
+    <meta
+      name="description"
+      content="Create and share beautiful, URL-powered countdown boards."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Manrope:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="landing-page">
+    <main class="landing-shell">
+      <section class="hero-card">
+        <p class="eyebrow">Static GitHub Pages App</p>
+        <h1>Countdown Garden</h1>
+        <p>
+          Build a shareable list of countdowns from URL arguments. Add events with
+          date, time, timezone, and title, then send one clean link.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="./countdown.html">Create Countdown Link</a>
+        </div>
+      </section>
+    </main>
+    <script>
+      (function redirectIfQueryExists() {
+        if (window.location.search.length > 1) {
+          window.location.replace('./countdown.html' + window.location.search);
+        }
+      })();
+    </script>
+  </body>
+</html>

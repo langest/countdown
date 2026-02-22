@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Countdown Garden</title>
+    <meta
+      name="description"
+      content="Beautiful shareable countdown lists powered by URL parameters."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Manrope:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <a class="home-link" href="./index.html">Countdown Garden</a>
+        <p>Share your moments with one URL.</p>
+      </header>
+
+      <section id="builder-view" class="panel hidden" aria-labelledby="builder-title">
+        <div class="panel-head">
+          <h1 id="builder-title">Create a Countdown Link</h1>
+          <p>Add events and generate a shareable URL.</p>
+        </div>
+
+        <form id="event-form" novalidate>
+          <div id="event-rows" class="event-rows"></div>
+
+          <div class="form-actions">
+            <button type="button" id="add-event" class="btn btn-ghost">Add Event</button>
+            <button type="submit" class="btn btn-primary">Build URL</button>
+          </div>
+        </form>
+
+        <details class="url-help">
+          <summary>URL format details</summary>
+          <p>
+            This page reads repeated <code>event</code> parameters using:
+            <code>event=YYYY-MM-DD|HH:MM|+HH:MM|Title</code>
+          </p>
+          <p>Example:</p>
+          <code>
+            ?event=2026-12-31|23:59|+00:00|New%20Year&amp;event=2026-07-04|09:00|-04:00|Parade
+          </code>
+        </details>
+      </section>
+
+      <section id="countdown-view" class="hidden" aria-labelledby="countdown-title">
+        <div class="panel-head">
+          <h1 id="countdown-title">Your Countdowns</h1>
+          <p>Sorted by nearest upcoming date.</p>
+          <div class="form-actions">
+            <a class="btn btn-ghost" href="./countdown.html">Edit Events</a>
+          </div>
+        </div>
+
+        <div id="countdown-list" class="countdown-list"></div>
+      </section>
+    </main>
+
+    <template id="event-row-template">
+      <article class="event-row">
+        <label>
+          Title
+          <input name="title" type="text" maxlength="120" placeholder="Launch day" required />
+        </label>
+        <label>
+          Date
+          <input name="date" type="date" required />
+        </label>
+        <label>
+          Time
+          <input name="time" type="time" required />
+        </label>
+        <label>
+          Timezone
+          <select name="tz" required>
+            <option value="-08:00">UTC-08:00</option>
+            <option value="-05:00">UTC-05:00</option>
+            <option value="+00:00" selected>UTC+00:00</option>
+            <option value="+01:00">UTC+01:00</option>
+            <option value="+05:30">UTC+05:30</option>
+            <option value="+09:00">UTC+09:00</option>
+          </select>
+        </label>
+        <button type="button" class="remove-event btn btn-danger" aria-label="Remove event">
+          Remove
+        </button>
+      </article>
+    </template>
+
+    <template id="countdown-card-template">
+      <article class="countdown-card">
+        <div class="card-top">
+          <h2 class="event-title"></h2>
+          <span class="event-target"></span>
+        </div>
+        <div class="time-grid">
+          <div><strong class="days">0</strong><span>Days</span></div>
+          <div><strong class="hours">0</strong><span>Hours</span></div>
+          <div><strong class="minutes">0</strong><span>Minutes</span></div>
+          <div><strong class="seconds">0</strong><span>Seconds</span></div>
+        </div>
+        <p class="status"></p>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
