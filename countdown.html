@@ -42,11 +42,15 @@
           <summary>URL format details</summary>
           <p>
             This page reads repeated <code>event</code> parameters using:
-            <code>event=YYYY-MM-DD|HH:MM|+HH:MM|Title</code>
+            <code>event=YYYY-MM-DD|HH:MM|TimeZone|Title</code>
+          </p>
+          <p>
+            Time zone can be an IANA name (recommended) such as
+            <code>America/New_York</code> or a UTC offset such as <code>-05:00</code>.
           </p>
           <p>Example:</p>
           <code>
-            ?event=2026-12-31|23:59|+00:00|New%20Year&amp;event=2026-07-04|09:00|-04:00|Parade
+            ?event=2026-12-31|23:59|America/New_York|New%20Year&amp;event=2026-07-04|09:00|Europe/Paris|Parade
           </code>
         </details>
       </section>
@@ -80,20 +84,31 @@
         </label>
         <label>
           Timezone
-          <select name="tz" required>
-            <option value="-08:00">UTC-08:00</option>
-            <option value="-05:00">UTC-05:00</option>
-            <option value="+00:00" selected>UTC+00:00</option>
-            <option value="+01:00">UTC+01:00</option>
-            <option value="+05:30">UTC+05:30</option>
-            <option value="+09:00">UTC+09:00</option>
-          </select>
+          <input
+            name="tz"
+            type="text"
+            list="timezone-options"
+            placeholder="America/New_York"
+            required
+          />
         </label>
         <button type="button" class="remove-event btn btn-danger" aria-label="Remove event">
           Remove
         </button>
       </article>
     </template>
+
+    <datalist id="timezone-options">
+      <option value="America/New_York"></option>
+      <option value="America/Chicago"></option>
+      <option value="America/Denver"></option>
+      <option value="America/Los_Angeles"></option>
+      <option value="Europe/London"></option>
+      <option value="Europe/Paris"></option>
+      <option value="Asia/Tokyo"></option>
+      <option value="Australia/Sydney"></option>
+      <option value="UTC"></option>
+    </datalist>
 
     <template id="countdown-card-template">
       <article class="countdown-card">

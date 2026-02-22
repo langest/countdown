@@ -1,3 +1,6 @@
+const USER_TIME_ZONE = getUserTimeZone();
+const TIMEZONE_FORMATTER_CACHE = new Map();
+
 (function initApp() {
   const builderView = document.querySelector('#builder-view');
   const countdownView = document.querySelector('#countdown-view');
@@ -29,14 +32,15 @@ function parseEventsFromUrl() {
       continue;
     }
 
-    const [date, time, tz, ...titleParts] = parts;
+    const [date, time, tzRaw, ...titleParts] = parts;
     const title = titleParts.join('|').trim();
-    if (!isValidDate(date) || !isValidTime(time) || !isValidOffsetTz(tz) || !title) {
+    const tz = normalizeTimeZoneInput(tzRaw);
+
+    if (!isValidDate(date) || !isValidTime(time) || !isValidTimeZone(tz) || !title) {
       continue;
     }
 
-    const isoWithOffset = `${date}T${time}:00${tz}`;
-    const targetMs = new Date(isoWithOffset).getTime();
+    const targetMs = parseTargetMillis(date, time, tz);
     if (Number.isNaN(targetMs)) {
       continue;
     }
@@ -46,7 +50,6 @@ function parseEventsFromUrl() {
       date,
       time,
       tz,
-      isoWithOffset,
       targetMs,
     });
   }
@@ -132,13 +135,21 @@ function addBuilderRow(rowContainer) {
   if (article) {
     const dateInput = article.querySelector('input[name="date"]');
     const timeInput = article.querySelector('input[name="time"]');
+    const tzInput = article.querySelector('input[name="tz"]');
+
     if (dateInput instanceof HTMLInputElement && !dateInput.value) {
       dateInput.value = defaultDate();
     }
+
     if (timeInput instanceof HTMLInputElement && !timeInput.value) {
       timeInput.value = '09:00';
     }
+
+    if (tzInput instanceof HTMLInputElement && !tzInput.value) {
+      tzInput.value = USER_TIME_ZONE;
+    }
   }
+
   rowContainer.appendChild(node);
 }
 
@@ -154,9 +165,9 @@ function buildUrlFromForm(rowContainer) {
     const title = readFieldValue(row, 'title');
     const date = readFieldValue(row, 'date');
     const time = readFieldValue(row, 'time');
-    const tz = readFieldValue(row, 'tz');
+    const tz = normalizeTimeZoneInput(readFieldValue(row, 'tz'));
 
-    if (!title || !isValidDate(date) || !isValidTime(time) || !isValidOffsetTz(tz)) {
+    if (!title || !isValidDate(date) || !isValidTime(time) || !isValidTimeZone(tz)) {
       continue;
     }
 
@@ -203,7 +214,7 @@ function showCountdowns(events, builderView, countdownView) {
     }
 
     if (target) {
-      target.textContent = `${eventItem.date} ${eventItem.time} (UTC${eventItem.tz})`;
+      target.textContent = `${eventItem.date} ${eventItem.time} (${formatTimeZoneLabel(eventItem.tz)})`;
     }
 
     list.appendChild(cardFragment);
@@ -272,6 +283,185 @@ function isValidTime(value) {
 
 function isValidOffsetTz(value) {
   return value === 'Z' || /^[+-]\d{2}:\d{2}$/.test(value);
+}
+
+function isValidIanaTimeZone(value) {
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function isValidTimeZone(value) {
+  return Boolean(value) && (isValidOffsetTz(value) || isValidIanaTimeZone(value));
+}
+
+function normalizeTimeZoneInput(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (value === 'UTC' || value === 'utc' || value === 'Etc/UTC') {
+    return 'UTC';
+  }
+
+  return value;
+}
+
+function parseTargetMillis(date, time, tz) {
+  if (isValidOffsetTz(tz)) {
+    return new Date(`${date}T${time}:00${tz}`).getTime();
+  }
+
+  return zonedDateTimeToUtcMillis(date, time, tz);
+}
+
+function zonedDateTimeToUtcMillis(date, time, timeZone) {
+  const dateParts = parseDateTimeParts(date, time);
+  if (!dateParts) {
+    return Number.NaN;
+  }
+
+  const desiredUtcLike = Date.UTC(
+    dateParts.year,
+    dateParts.month - 1,
+    dateParts.day,
+    dateParts.hour,
+    dateParts.minute,
+    0,
+  );
+
+  let guess = desiredUtcLike;
+  for (let i = 0; i < 6; i += 1) {
+    const zoned = getZonedParts(new Date(guess), timeZone);
+    if (!zoned) {
+      return Number.NaN;
+    }
+
+    const zonedAsUtcLike = Date.UTC(
+      zoned.year,
+      zoned.month - 1,
+      zoned.day,
+      zoned.hour,
+      zoned.minute,
+      zoned.second,
+    );
+
+    const diff = desiredUtcLike - zonedAsUtcLike;
+    guess += diff;
+
+    if (diff === 0) {
+      break;
+    }
+  }
+
+  const verify = getZonedParts(new Date(guess), timeZone);
+  if (!verify) {
+    return Number.NaN;
+  }
+
+  const exactMatch =
+    verify.year === dateParts.year &&
+    verify.month === dateParts.month &&
+    verify.day === dateParts.day &&
+    verify.hour === dateParts.hour &&
+    verify.minute === dateParts.minute;
+
+  return exactMatch ? guess : Number.NaN;
+}
+
+function parseDateTimeParts(date, time) {
+  if (!isValidDate(date) || !isValidTime(time)) {
+    return null;
+  }
+
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day) ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return null;
+  }
+
+  return { year, month, day, hour, minute };
+}
+
+function getZonedParts(date, timeZone) {
+  const formatter = getTimeZoneFormatter(timeZone);
+  if (!formatter) {
+    return null;
+  }
+
+  const parts = formatter.formatToParts(date);
+  const lookup = {};
+
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      lookup[part.type] = part.value;
+    }
+  }
+
+  return {
+    year: Number(lookup.year),
+    month: Number(lookup.month),
+    day: Number(lookup.day),
+    hour: Number(lookup.hour),
+    minute: Number(lookup.minute),
+    second: Number(lookup.second),
+  };
+}
+
+function getTimeZoneFormatter(timeZone) {
+  if (TIMEZONE_FORMATTER_CACHE.has(timeZone)) {
+    return TIMEZONE_FORMATTER_CACHE.get(timeZone);
+  }
+
+  let formatter = null;
+  try {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    });
+  } catch (_) {
+    formatter = null;
+  }
+
+  TIMEZONE_FORMATTER_CACHE.set(timeZone, formatter);
+  return formatter;
+}
+
+function getUserTimeZone() {
+  try {
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (browserTimeZone && isValidIanaTimeZone(browserTimeZone)) {
+      return browserTimeZone;
+    }
+  } catch (_) {
+    return 'UTC';
+  }
+
+  return 'UTC';
+}
+
+function formatTimeZoneLabel(timeZone) {
+  if (isValidOffsetTz(timeZone)) {
+    return timeZone === 'Z' ? 'UTC' : `UTC${timeZone}`;
+  }
+
+  return timeZone;
 }
 
 function defaultDate() {
